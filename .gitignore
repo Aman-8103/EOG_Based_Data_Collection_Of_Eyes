@@ -1,0 +1,53 @@
+# ==========================================
+# User Specified Exclusions
+# ==========================================
+Processed Data/
+Previous Data Plots/
+LabelData_backup/
+index_backup.html
+index.html.bak
+
+# ==========================================
+# Large / Temporary Plots & Data
+# ==========================================
+New Data/
+New Data Plots/
+*.bak
+*.backup
+
+# ==========================================
+# Python & Jupyter Cache
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.ipynb_checkpoints/
+
+# ==========================================
+# AI Assistant & Tool Cache
+# ==========================================
+.agent/
+.agents/
+.gemini/
+.gsd/
+scratch/
+model_capabilities.yaml
+GSD-STYLE.md
+PROJECT_RULES.md
+
+# ==========================================
+# Environment & IDE
+# ==========================================
+.env
+.venv/
+venv/
+ENV/
+.vscode/
+.idea/
+
+# ==========================================
+# OS Generated Files
+# ==========================================
+.DS_Store
+Thumbs.db

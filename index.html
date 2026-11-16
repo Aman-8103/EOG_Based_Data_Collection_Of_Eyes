@@ -1,0 +1,2969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iSync — EOG Visual Stimulus & Acquisition Control</title>
+
+    <style>
+        :root {
+            --neon: #00ffcc;
+            --neon-dim: rgba(0, 255, 204, 0.2);
+            --bg-dark: #0f1117;
+            --panel-bg: rgba(22, 27, 34, 0.92);
+            --border-color: rgba(0, 255, 204, 0.35);
+            --text-main: #f0f6fc;
+            --text-muted: #8b949e;
+            --accent-red: #ff4d4d;
+            --accent-orange: #ff9800;
+            --accent-blue: #388bfd;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg-dark);
+            overflow: hidden;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: var(--text-main);
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+
+        body::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image:
+                radial-gradient(
+                    rgba(0, 255, 204, 0.08) 1px,
+                    transparent 1px
+                );
+            background-size: 30px 30px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* =========================
+           TOP HEADER
+        ========================= */
+
+        #topBar {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 40px);
+            max-width: 1200px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 10;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .header-title {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header-title h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--neon);
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+        }
+
+        .header-title span {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .input-field {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 6px;
+            padding: 6px 12px;
+        }
+
+        .input-field label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .input-field input,
+        .input-field select {
+            background: transparent;
+            border: none;
+            color: var(--neon);
+            font-size: 14px;
+            font-weight: bold;
+            outline: none;
+            font-family: monospace;
+        }
+
+        .input-field select option {
+            background: #161b22;
+            color: #fff;
+        }
+
+        .badge {
+            font-size: 11px;
+            font-weight: bold;
+            padding: 4px 10px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .badge-active {
+            background: rgba(0, 255, 204, 0.15);
+            color: var(--neon);
+            border: 1px solid var(--neon);
+        }
+
+        .badge-warn {
+            background: rgba(255, 152, 0, 0.15);
+            color: var(--accent-orange);
+            border: 1px solid var(--accent-orange);
+        }
+
+        /* =========================
+           TARGET MARKERS
+        ========================= */
+
+        .target-marker {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border: 1px dashed rgba(0, 255, 204, 0.25);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        #marker-center {
+            top: 50%;
+            left: 50%;
+            border-style: solid;
+            border-color: rgba(0, 255, 204, 0.3);
+        }
+
+        #marker-left {
+            top: 50%;
+            left: 10%;
+        }
+
+        #marker-right {
+            top: 50%;
+            left: 90%;
+        }
+
+        #marker-up {
+            top: 10%;
+            left: 50%;
+        }
+
+        #marker-down {
+            top: 90%;
+            left: 50%;
+        }
+
+        /* =========================
+           BALL
+        ========================= */
+
+        #ball {
+            width: 44px;
+            height: 44px;
+            background-color: var(--neon);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow:
+                0 0 30px var(--neon),
+                0 0 60px rgba(0, 255, 204, 0.4);
+            transition: all 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 5;
+        }
+
+        /* =========================
+           TRIAL HUD
+        ========================= */
+
+        #trialHUD {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 24px;
+            display: none;
+            align-items: center;
+            gap: 24px;
+            z-index: 10;
+            font-size: 14px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+        }
+
+        .hud-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .hud-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .hud-val {
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--neon);
+            font-family: monospace;
+        }
+
+        /* =========================
+           COUNTDOWN
+        ========================= */
+
+        #countdownOverlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(10, 12, 18, 0.85);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            backdrop-filter: blur(8px);
+        }
+
+        #countdownText {
+            font-size: 110px;
+            font-weight: 900;
+            color: var(--neon);
+            text-shadow: 0 0 40px var(--neon);
+            animation: pulseCount 0.9s ease infinite;
+        }
+
+        #countdownSub {
+            font-size: 20px;
+            color: #fff;
+            margin-top: 15px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        @keyframes pulseCount {
+            0% {
+                transform: scale(0.85);
+                opacity: 0.8;
+            }
+
+            50% {
+                transform: scale(1.1);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(0.85);
+                opacity: 0.8;
+            }
+        }
+
+        /* =========================
+           BOTTOM CONTROLS
+        ========================= */
+
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            z-index: 10;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 14px;
+            background-color: #1a1e27;
+            color: var(--neon);
+            border: 2px solid var(--neon);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            background-color: var(--neon);
+            color: #111;
+            box-shadow: 0 0 15px var(--neon-dim);
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .btn-start {
+            background: var(--neon);
+            color: #111;
+            font-size: 16px;
+            padding: 12px 28px;
+            box-shadow: 0 0 25px rgba(0, 255, 204, 0.4);
+        }
+
+        .btn-start:hover {
+            background: #fff;
+            color: #111;
+            border-color: #fff;
+            box-shadow: 0 0 35px #fff;
+        }
+
+        #status {
+            color: var(--text-muted);
+            font-size: 13px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+
+        /* =========================
+           INSPECTION MODAL
+        ========================= */
+
+        #inspectionModal {
+            position: absolute;
+            inset: 0;
+            background: rgba(10, 12, 18, 0.92);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            padding: 20px;
+        }
+
+        .modal-card {
+            background: #161b22;
+            border: 2px solid var(--border-color);
+            border-radius: 14px;
+            width: 95%;
+            max-width: 1050px;
+            max-height: 92vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 18px;
+            color: var(--neon);
+        }
+
+        .modal-body {
+            padding: 16px 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.35);
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .metric-box {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .metric-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .metric-val {
+            font-size: 17px;
+            font-weight: bold;
+            color: #fff;
+            margin-top: 3px;
+        }
+
+        .plot-container {
+            background: #0d1117;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 280px;
+        }
+
+        .plot-container img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.25);
+        }
+
+        .btn-select {
+            background: #238636;
+            color: #fff;
+            border-color: #2ea043;
+        }
+
+        .btn-select:hover {
+            background: #2ea043;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(46, 160, 67, 0.5);
+        }
+
+        .btn-reject {
+            background: #da3633;
+            color: #fff;
+            border-color: #f85149;
+        }
+
+        .btn-reject:hover {
+            background: #f85149;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(248, 81, 73, 0.5);
+        }
+
+        .btn-record-again {
+            background: #1f6feb;
+            color: #fff;
+            border-color: #388bfd;
+        }
+
+        .btn-record-again:hover {
+            background: #388bfd;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(56, 139, 253, 0.5);
+        }
+
+        /* =========================
+           REPLACEMENT WARNING
+        ========================= */
+
+        #replaceAlertBox {
+            background: rgba(255, 152, 0, 0.15);
+            border: 1px solid var(--accent-orange);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: none;
+            color: #ffd8a8;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        /* =========================
+           RESPONSIVE
+        ========================= */
+
+        @media (max-width: 900px) {
+            #topBar {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .control-group {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .modal-footer {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- =========================================
+         FIXATION TARGET MARKERS
+    ========================================== -->
+
+    <div class="target-marker" id="marker-center"></div>
+    <div class="target-marker" id="marker-left"></div>
+    <div class="target-marker" id="marker-right"></div>
+    <div class="target-marker" id="marker-up"></div>
+    <div class="target-marker" id="marker-down"></div>
+
+    <!-- GREEN BALL -->
+    <div id="ball"></div>
+
+    <!-- =========================================
+         TOP HEADER
+    ========================================== -->
+
+    <div id="topBar">
+
+        <div class="header-title">
+            <h1>iSync — EOG Control</h1>
+            <span>
+                Data Acquisition & Stimulus Synchronization System
+            </span>
+        </div>
+
+        <div class="control-group">
+
+            <div class="input-field">
+                <label for="subjectInput">Subject:</label>
+                <input
+                    type="text"
+                    id="subjectInput"
+                    value="S01"
+                    size="5"
+                    maxlength="6"
+                    autocomplete="off"
+                >
+            </div>
+
+            <div class="input-field">
+                <label for="sequenceSelect">Protocol:</label>
+
+                <select id="sequenceSelect">
+
+                    <option value="Sequence_A">
+                        Seq A: R-L-R-L / U-D-U-D
+                    </option>
+
+                    <option value="Sequence_B">
+                        Seq B: L-R-L-R / U-D-U-D
+                    </option>
+
+                    <option value="Sequence_C">
+                        Seq C: R-L-R-L / D-U-D-U
+                    </option>
+
+                    <option value="Sequence_D">
+                        Seq D: L-R-L-R / D-U-D-U
+                    </option>
+
+                </select>
+            </div>
+
+            <div id="attemptBadge" class="badge badge-active">
+                Next: S01_A01
+            </div>
+
+            <div id="selectedStatusBadge" class="badge badge-warn">
+                No Final Selection
+            </div>
+
+            <div id="hardwareBadge" class="badge badge-active">
+                Connecting...
+            </div>
+
+        </div>
+    </div>
+
+    <!-- =========================================
+         LIVE TRIAL HUD
+    ========================================== -->
+
+    <div id="trialHUD">
+
+        <div class="hud-item">
+            <span class="hud-label">Trial Progress</span>
+            <span id="hudTime" class="hud-val">
+                00.0 / 36.0s
+            </span>
+        </div>
+
+        <div class="hud-item">
+            <span class="hud-label">Samples Captured</span>
+            <span id="hudSamples" class="hud-val">
+                0
+            </span>
+        </div>
+
+        <div class="hud-item">
+            <span class="hud-label">Current Stimulus</span>
+            <span id="hudStimulus" class="hud-val" style="color:#fff;">
+                REST
+            </span>
+        </div>
+
+    </div>
+
+    <!-- =========================================
+         COUNTDOWN OVERLAY
+    ========================================== -->
+
+    <div id="countdownOverlay">
+
+        <div id="countdownText">
+            3
+        </div>
+
+        <div id="countdownSub">
+            Focus your eyes on the Green Ball
+        </div>
+
+    </div>
+
+    <!-- =========================================
+         BOTTOM CONTROLS
+    ========================================== -->
+
+    <div id="controls">
+
+        <div id="status">
+            Ready. Select Subject and Protocol, then press Start 36s Trial.
+        </div>
+
+        <div class="row">
+
+            <button
+                id="startTrialButton"
+                class="btn-start"
+                onclick="controllerStartNotice()"
+            >
+                <span>▶</span>
+                Start from Python Cell 3
+            </button>
+
+            <button
+                id="manualToggleButton"
+                onclick="toggleManualControls()"
+                style="
+                    background-color: transparent;
+                    border-color: rgba(255,255,255,0.2);
+                    color: var(--text-muted);
+                "
+            >
+                Manual Test Controls
+            </button>
+
+        </div>
+
+        <!--
+            Manual controls are ONLY for calibration/testing.
+            They are disabled/hidden during an actual trial.
+        -->
+
+        <div
+            class="row"
+            id="manualButtons"
+            style="display:none;"
+        >
+
+            <button onclick="moveBall('left')">
+                ← Left
+            </button>
+
+            <button onclick="moveBall('right')">
+                Right →
+            </button>
+
+            <button onclick="moveBall('up')">
+                ↑ Up
+            </button>
+
+            <button onclick="moveBall('down')">
+                ↓ Down
+            </button>
+
+            <button onclick="moveBall('center')">
+                Center
+            </button>
+
+        </div>
+
+    </div>
+
+    <!-- =========================================
+         POST-TRIAL QUALITY INSPECTION MODAL
+    ========================================== -->
+
+    <div id="inspectionModal">
+
+        <div class="modal-card">
+
+            <div class="modal-header">
+
+                <h2>
+                    Inspection Graph Review —
+                    <span id="modalAttemptTitle">
+                        S01_A01
+                    </span>
+                </h2>
+
+                <div
+                    class="badge badge-active"
+                    id="modalValidationBadge"
+                >
+                    Data Valid
+                </div>
+
+            </div>
+
+            <div class="modal-body">
+
+                <div class="metrics-grid">
+
+                    <div class="metric-box">
+                        <span class="metric-title">
+                            Duration
+                        </span>
+
+                        <span
+                            class="metric-val"
+                            id="metricDuration"
+                        >
+                            --
+                        </span>
+                    </div>
+
+                    <div class="metric-box">
+                        <span class="metric-title">
+                            Total Samples
+                        </span>
+
+                        <span
+                            class="metric-val"
+                            id="metricSamples"
+                        >
+                            --
+                        </span>
+                    </div>
+
+                    <div class="metric-box">
+                        <span class="metric-title">
+                            Estimated Sampling Rate
+                        </span>
+
+                        <span
+                            class="metric-val"
+                            id="metricFs"
+                        >
+                            --
+                        </span>
+                    </div>
+
+                    <div class="metric-box">
+                        <span class="metric-title">
+                            Validation Check
+                        </span>
+
+                        <span
+                            class="metric-val"
+                            id="metricCheck"
+                            style="
+                                font-size:13px;
+                                color:var(--neon);
+                            "
+                        >
+                            --
+                        </span>
+                    </div>
+
+                </div>
+
+                <div id="replaceAlertBox">
+
+                    <strong>
+                        ⚠️ Duplicate Subject Warning:
+                    </strong>
+
+                    <span id="replaceAlertText">
+                        Subject already has a selected recording.
+                    </span>
+
+                    <div style="margin-top:8px;">
+
+                        Selecting this attempt will
+                        <strong>REPLACE</strong>
+                        the existing selected recording for this
+                        subject in
+                        <code>LabelData/Eog Data.csv</code>.
+
+                    </div>
+
+                </div>
+
+                <div class="plot-container">
+
+                    <img
+                        id="plotImage"
+                        src=""
+                        alt="EOG Inspection Graph"
+                    >
+
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+
+                <div
+                    style="
+                        font-size:13px;
+                        color:var(--text-muted);
+                    "
+                >
+                    Select this attempt for the final dataset?
+                </div>
+
+                <div class="row">
+
+                    <button
+                        class="btn-reject"
+                        onclick="handleDecision('REJECT')"
+                    >
+                        ✖ REJECT Attempt
+                    </button>
+
+                    <button
+                        class="btn-record-again"
+                        onclick="handleDecision('RECORD_AGAIN')"
+                    >
+                        🔄 RECORD AGAIN
+                    </button>
+
+                    <button
+                        class="btn-select"
+                        id="btnSelectAttempt"
+                        onclick="handleDecision('SELECT')"
+                    >
+                        ✔ SELECT For Final Dataset
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- =========================================
+         JAVASCRIPT
+    ========================================== -->
+
+    <script>
+
+        /* =====================================================
+           DOM REFERENCES
+        ===================================================== */
+
+        const ball =
+            document.getElementById('ball');
+
+        const topBar =
+            document.getElementById('topBar');
+
+        const controlsPanel =
+            document.getElementById('controls');
+
+        const statusText =
+            document.getElementById('status');
+
+        const subjectInput =
+            document.getElementById('subjectInput');
+
+        const sequenceSelect =
+            document.getElementById('sequenceSelect');
+
+        const attemptBadge =
+            document.getElementById('attemptBadge');
+
+        const selectedStatusBadge =
+            document.getElementById('selectedStatusBadge');
+
+        const hardwareBadge =
+            document.getElementById('hardwareBadge');
+
+        const trialHUD =
+            document.getElementById('trialHUD');
+
+        const hudTime =
+            document.getElementById('hudTime');
+
+        const hudSamples =
+            document.getElementById('hudSamples');
+
+        const hudStimulus =
+            document.getElementById('hudStimulus');
+
+        const countdownOverlay =
+            document.getElementById('countdownOverlay');
+
+        const countdownText =
+            document.getElementById('countdownText');
+
+        const startTrialButton =
+            document.getElementById('startTrialButton');
+
+        const manualToggleButton =
+            document.getElementById('manualToggleButton');
+
+        const manualButtons =
+            document.getElementById('manualButtons');
+
+        const inspectionModal =
+            document.getElementById('inspectionModal');
+
+        const modalAttemptTitle =
+            document.getElementById('modalAttemptTitle');
+
+        const plotImage =
+            document.getElementById('plotImage');
+
+        const metricDuration =
+            document.getElementById('metricDuration');
+
+        const metricSamples =
+            document.getElementById('metricSamples');
+
+        const metricFs =
+            document.getElementById('metricFs');
+
+        const metricCheck =
+            document.getElementById('metricCheck');
+
+        const modalValidationBadge =
+            document.getElementById('modalValidationBadge');
+
+        const replaceAlertBox =
+            document.getElementById('replaceAlertBox');
+
+        const replaceAlertText =
+            document.getElementById('replaceAlertText');
+
+        const btnSelectAttempt =
+            document.getElementById('btnSelectAttempt');
+
+
+        /* =====================================================
+           GLOBAL TRIAL STATE
+        ===================================================== */
+
+        const TRIAL_DURATION = 36.0;
+
+        const PHASE_DURATION = 2.0;
+
+        const TOTAL_PHASES = 13;
+
+        let isTrialRunning = false;
+
+        let isCountdownRunning = false;
+
+        let currentSubject = "S01";
+
+        let currentSequence = "Sequence_A";
+
+        let nextAttemptId = "S01_A01";
+
+        let hasSelectedRecording = false;
+
+        let selectedAttemptId = null;
+
+        let activeAttemptId = null;
+
+        let trialTimer = null;
+
+        let trialStartTime = null;
+
+        let stimulusSchedule = [];
+
+        let lastStimulusIndex = -1;
+
+        let statusPollTimer = null;
+
+        let statusRequestInFlight = false;
+
+        let countdownTimer = null;
+
+        // Python controller -> browser synchronization
+        // Only one controller-start may be scheduled at a time.
+        let controllerStartTimer = null;
+        let controllerStartKey = null;
+
+
+        /* =====================================================
+           EXACT SEQUENCE DEFINITIONS
+           
+           Gesture phases = 2 seconds; REST phases = 4 seconds.
+           CENTER targets the central position.
+        ===================================================== */
+
+        const SEQUENCE_DEFINITIONS = {
+
+            "Sequence_A": [
+                { start: 0, end: 4, label: "REST", target: "center" },
+                { start: 4, end: 6, label: "RIGHT", target: "right" },
+                { start: 6, end: 8, label: "LEFT", target: "left" },
+                { start: 8, end: 12, label: "CENTER", target: "center" },
+                { start: 12, end: 14, label: "UP", target: "up" },
+                { start: 14, end: 16, label: "DOWN", target: "down" },
+                { start: 16, end: 20, label: "REST", target: "center" },
+                { start: 20, end: 22, label: "RIGHT", target: "right" },
+                { start: 22, end: 24, label: "LEFT", target: "left" },
+                { start: 24, end: 28, label: "CENTER", target: "center" },
+                { start: 28, end: 30, label: "UP", target: "up" },
+                { start: 30, end: 32, label: "DOWN", target: "down" },
+                { start: 32, end: 36, label: "REST", target: "center" }
+            ],
+
+            "Sequence_B": [
+                { start: 0, end: 4, label: "REST", target: "center" },
+                { start: 4, end: 6, label: "LEFT", target: "left" },
+                { start: 6, end: 8, label: "RIGHT", target: "right" },
+                { start: 8, end: 12, label: "CENTER", target: "center" },
+                { start: 12, end: 14, label: "UP", target: "up" },
+                { start: 14, end: 16, label: "DOWN", target: "down" },
+                { start: 16, end: 20, label: "REST", target: "center" },
+                { start: 20, end: 22, label: "LEFT", target: "left" },
+                { start: 22, end: 24, label: "RIGHT", target: "right" },
+                { start: 24, end: 28, label: "CENTER", target: "center" },
+                { start: 28, end: 30, label: "UP", target: "up" },
+                { start: 30, end: 32, label: "DOWN", target: "down" },
+                { start: 32, end: 36, label: "REST", target: "center" }
+            ],
+
+            "Sequence_C": [
+                { start: 0, end: 4, label: "REST", target: "center" },
+                { start: 4, end: 6, label: "RIGHT", target: "right" },
+                { start: 6, end: 8, label: "LEFT", target: "left" },
+                { start: 8, end: 12, label: "CENTER", target: "center" },
+                { start: 12, end: 14, label: "DOWN", target: "down" },
+                { start: 14, end: 16, label: "UP", target: "up" },
+                { start: 16, end: 20, label: "REST", target: "center" },
+                { start: 20, end: 22, label: "RIGHT", target: "right" },
+                { start: 22, end: 24, label: "LEFT", target: "left" },
+                { start: 24, end: 28, label: "CENTER", target: "center" },
+                { start: 28, end: 30, label: "DOWN", target: "down" },
+                { start: 30, end: 32, label: "UP", target: "up" },
+                { start: 32, end: 36, label: "REST", target: "center" }
+            ],
+
+            "Sequence_D": [
+                { start: 0, end: 4, label: "REST", target: "center" },
+                { start: 4, end: 6, label: "LEFT", target: "left" },
+                { start: 6, end: 8, label: "RIGHT", target: "right" },
+                { start: 8, end: 12, label: "CENTER", target: "center" },
+                { start: 12, end: 14, label: "DOWN", target: "down" },
+                { start: 14, end: 16, label: "UP", target: "up" },
+                { start: 16, end: 20, label: "REST", target: "center" },
+                { start: 20, end: 22, label: "LEFT", target: "left" },
+                { start: 22, end: 24, label: "RIGHT", target: "right" },
+                { start: 24, end: 28, label: "CENTER", target: "center" },
+                { start: 28, end: 30, label: "DOWN", target: "down" },
+                { start: 30, end: 32, label: "UP", target: "up" },
+                { start: 32, end: 36, label: "REST", target: "center" }
+            ]
+        };
+
+
+        /* =====================================================
+           SEQUENCE VALIDATION
+        ===================================================== */
+
+        function validateSequence(schedule) {
+
+            if (!Array.isArray(schedule)) {
+                return false;
+            }
+
+            if (schedule.length !== TOTAL_PHASES) {
+                console.error(
+                    "Invalid sequence length:",
+                    schedule.length
+                );
+
+                return false;
+            }
+
+            for (let i = 0; i < schedule.length; i++) {
+
+                const phase = schedule[i];
+
+                const previousEnd = i === 0 ? 0 : schedule[i - 1].end;
+                const duration = phase.end - phase.start;
+
+                if (
+                    Math.abs(phase.start - previousEnd) > 0.001 ||
+                    phase.end <= phase.start
+                ) {
+                    console.error("Invalid/non-contiguous phase timing:", phase);
+                    return false;
+                }
+
+                if (phase.label === "REST" || phase.label === "CENTER") {
+                    if (![4, 2].some(v => Math.abs(duration - v) < 0.001)) {
+                        console.error("REST/CENTER must be 2 or 4 seconds:", phase);
+                        return false;
+                    }
+                } else if (Math.abs(duration - PHASE_DURATION) > 0.001) {
+                    console.error("Gesture phase must be 2 seconds:", phase);
+                    return false;
+                }
+
+                const validLabels = [
+                    "REST",
+                    "RIGHT",
+                    "LEFT",
+                    "CENTER",
+                    "UP",
+                    "DOWN"
+                ];
+
+                if (!validLabels.includes(phase.label)) {
+                    console.error(
+                        "Invalid stimulus label:",
+                        phase.label
+                    );
+
+                    return false;
+                }
+            }
+
+            if (Math.abs(schedule[schedule.length - 1].end - TRIAL_DURATION) > 0.001) {
+                console.error("Sequence must end at 36 seconds.");
+                return false;
+            }
+
+            return true;
+        }
+
+
+        /* =====================================================
+           GET SELECTED SEQUENCE
+        ===================================================== */
+
+        function getSelectedSequence() {
+
+            const sequence =
+                SEQUENCE_DEFINITIONS[currentSequence];
+
+            if (!validateSequence(sequence)) {
+
+                console.error(
+                    "Selected sequence is invalid:",
+                    currentSequence
+                );
+
+                return [];
+            }
+
+            /*
+                Return a deep copy so the original definition
+                cannot accidentally be modified during a trial.
+            */
+
+            return sequence.map(phase => ({
+                start: phase.start,
+                end: phase.end,
+                label: phase.label,
+                target: phase.target
+            }));
+        }
+
+
+        /* =====================================================
+           BUILD TIMELINE PAYLOAD
+           
+           This is the important bridge for Python later.
+           The exact sequence selected here will be sent to
+           the notebook/backend in the synchronization step.
+        ===================================================== */
+
+        function buildTimelinePayload() {
+
+            return {
+                sequence_id: currentSequence,
+
+                duration: TRIAL_DURATION,
+
+                phase_duration: PHASE_DURATION,
+
+                phases: stimulusSchedule.map(
+                    (phase, index) => ({
+                        phase_index: index + 1,
+                        start: phase.start,
+                        end: phase.end,
+                        label: phase.label,
+                        target: phase.target
+                    })
+                )
+            };
+        }
+
+
+        /* =====================================================
+           BALL MOVEMENT
+        ===================================================== */
+
+        function moveBall(direction) {
+
+            if (direction === 'left') {
+
+                ball.style.left = '10%';
+                ball.style.top = '50%';
+
+            } else if (direction === 'right') {
+
+                ball.style.left = '90%';
+                ball.style.top = '50%';
+
+            } else if (direction === 'up') {
+
+                ball.style.left = '50%';
+                ball.style.top = '10%';
+
+            } else if (direction === 'down') {
+
+                ball.style.left = '50%';
+                ball.style.top = '90%';
+
+            } else if (
+                direction === 'center' ||
+                direction === 'rest'
+            ) {
+
+                ball.style.left = '50%';
+                ball.style.top = '50%';
+
+            }
+
+        }
+
+
+        /* =====================================================
+           MANUAL CONTROLS
+        ===================================================== */
+
+        function toggleManualControls() {
+
+            if (isTrialRunning || isCountdownRunning) {
+                return;
+            }
+
+            const isHidden =
+                manualButtons.style.display === 'none';
+
+            manualButtons.style.display =
+                isHidden ? 'flex' : 'none';
+        }
+
+
+        /* =====================================================
+           LOCK / UNLOCK UI
+        ===================================================== */
+
+        function setTrialUIState(running) {
+
+            isTrialRunning = running;
+
+            subjectInput.disabled = running;
+
+            sequenceSelect.disabled = running;
+
+            startTrialButton.disabled = running;
+
+            manualToggleButton.disabled = running;
+
+            const manualButtonElements =
+                manualButtons.querySelectorAll('button');
+
+            manualButtonElements.forEach(
+                button => {
+                    button.disabled = running;
+                }
+            );
+
+            if (running) {
+
+                topBar.style.opacity = '0';
+                topBar.style.pointerEvents = 'none';
+
+                controlsPanel.style.opacity = '0';
+                controlsPanel.style.pointerEvents = 'none';
+
+                manualButtons.style.display = 'none';
+
+            } else {
+
+                topBar.style.opacity = '1';
+                topBar.style.pointerEvents = 'all';
+
+                controlsPanel.style.opacity = '1';
+                controlsPanel.style.pointerEvents = 'all';
+            }
+        }
+
+
+        /* =====================================================
+           SERVER STATUS
+        ===================================================== */
+
+        async function refreshStatus() {
+
+            if (statusRequestInFlight) {
+                return;
+            }
+
+            statusRequestInFlight = true;
+
+            /*
+                The Python notebook is the single trial controller.
+
+                /api/status is used for two things:
+                1. normal UI/status updates
+                2. receiving a pending controller visual-start command
+
+                IMPORTANT:
+                We NEVER start the browser trial merely because
+                data.recording === true.
+            */
+
+            try {
+
+                const res =
+                    await fetch('/api/status', {
+                        cache: 'no-store'
+                    });
+
+                if (!res.ok) {
+                    throw new Error(
+                        `HTTP ${res.status}`
+                    );
+                }
+
+                const data =
+                    await res.json();
+
+                if (data.subject_id) {
+
+                    currentSubject =
+                        data.subject_id;
+
+                    if (!isTrialRunning &&
+                        !isCountdownRunning) {
+
+                        subjectInput.value =
+                            currentSubject;
+                    }
+                }
+
+                if (data.next_attempt_id) {
+
+                    nextAttemptId =
+                        data.next_attempt_id;
+
+                    attemptBadge.innerText =
+                        `Next: ${nextAttemptId}`;
+                }
+
+                hasSelectedRecording =
+                    Boolean(data.has_selected);
+
+                selectedAttemptId =
+                    data.selected_attempt_id || null;
+
+                if (hasSelectedRecording) {
+
+                    selectedStatusBadge.innerText =
+                        `Selected: ${selectedAttemptId}`;
+
+                    selectedStatusBadge.className =
+                        "badge badge-active";
+
+                } else {
+
+                    selectedStatusBadge.innerText =
+                        "No Final Selection";
+
+                    selectedStatusBadge.className =
+                        "badge badge-warn";
+                }
+
+                if (data.is_mock) {
+
+                    hardwareBadge.innerText =
+                        "Mock Stream (No HW)";
+
+                    hardwareBadge.className =
+                        "badge badge-warn";
+
+                } else if (data.port) {
+
+                    hardwareBadge.innerText =
+                        `Arduino (${data.port})`;
+
+                    hardwareBadge.className =
+                        "badge badge-active";
+
+                } else {
+
+                    hardwareBadge.innerText =
+                        "Arduino";
+
+                    hardwareBadge.className =
+                        "badge badge-active";
+                }
+
+                if (isTrialRunning) {
+
+                    if (
+                        typeof data.samples === 'number'
+                    ) {
+
+                        hudSamples.innerText =
+                            data.samples;
+                    }
+                }
+
+                /*
+                    =================================================
+                    CONTROLLER -> HTML START HANDSHAKE
+                    =================================================
+
+                    Cell 3 creates visual_start_at = Unix seconds.
+
+                    Browser Date.now() uses the same Unix epoch in
+                    milliseconds.
+
+                    We schedule the visual start for that exact
+                    timestamp instead of starting immediately when
+                    the polling request happens.
+                */
+
+                if (
+                    !isTrialRunning &&
+                    !isCountdownRunning &&
+                    data.visual_start_at !== null &&
+                    data.visual_start_at !== undefined
+                ) {
+
+                    const attemptId =
+                        data.visual_start_attempt_id ||
+                        data.attempt_id ||
+                        null;
+
+                    const sequenceId =
+                        data.visual_start_sequence_id ||
+                        data.sequence_id ||
+                        currentSequence;
+
+                    const controllerTimeline =
+                        Array.isArray(
+                            data.visual_start_timeline
+                        )
+                            ? data.visual_start_timeline
+                            : null;
+
+                    const startTimestamp =
+                        Number(
+                            data.visual_start_at
+                        );
+
+                    const startKey =
+                        `${attemptId || ''}|` +
+                        `${sequenceId || ''}|` +
+                        `${startTimestamp}`;
+
+                    /*
+                        Do not schedule the same controller command
+                        more than once while polling.
+                    */
+
+                    if (
+                        controllerStartKey !== startKey &&
+                        Number.isFinite(startTimestamp)
+                    ) {
+
+                        startTrialFromController(
+                            attemptId,
+                            sequenceId,
+                            controllerTimeline,
+                            startTimestamp
+                        );
+                    }
+                }
+
+            } catch (error) {
+
+                hardwareBadge.innerText =
+                    "Server Offline";
+
+                hardwareBadge.className =
+                    "badge badge-warn";
+
+            } finally {
+
+                statusRequestInFlight = false;
+
+            }
+
+        }
+
+        /* =====================================================
+           SUBJECT CHANGE
+        ===================================================== */
+
+        async function onSubjectChange() {
+
+            if (isTrialRunning ||
+                isCountdownRunning) {
+
+                return;
+            }
+
+            const rawSubject =
+                subjectInput.value
+                    .trim()
+                    .toUpperCase();
+
+            if (!rawSubject) {
+
+                statusText.innerText =
+                    "Please enter a valid Subject ID.";
+
+                return;
+            }
+
+            currentSubject =
+                rawSubject;
+
+            currentSequence =
+                sequenceSelect.value;
+
+            try {
+
+                const res =
+                    await fetch('/api/set_subject', {
+
+                        method: 'POST',
+
+                        headers: {
+                            'Content-Type':
+                                'application/json'
+                        },
+
+                        body: JSON.stringify({
+                            subject_id:
+                                currentSubject,
+
+                            sequence_id:
+                                currentSequence
+                        })
+
+                    });
+
+                if (!res.ok) {
+                    throw new Error(
+                        `HTTP ${res.status}`
+                    );
+                }
+
+                const data =
+                    await res.json();
+
+                if (data.subject_id) {
+
+                    currentSubject =
+                        data.subject_id;
+
+                    subjectInput.value =
+                        currentSubject;
+                }
+
+                if (data.next_attempt_id) {
+
+                    nextAttemptId =
+                        data.next_attempt_id;
+
+                    attemptBadge.innerText =
+                        `Next: ${nextAttemptId}`;
+                }
+
+                hasSelectedRecording =
+                    Boolean(data.has_selected);
+
+                selectedAttemptId =
+                    data.selected_attempt_id || null;
+
+                if (hasSelectedRecording) {
+
+                    selectedStatusBadge.innerText =
+                        `Selected: ${selectedAttemptId}`;
+
+                    selectedStatusBadge.className =
+                        "badge badge-active";
+
+                } else {
+
+                    selectedStatusBadge.innerText =
+                        "No Final Selection";
+
+                    selectedStatusBadge.className =
+                        "badge badge-warn";
+                }
+
+                statusText.innerText =
+                    `Subject set to ${currentSubject}. ` +
+                    `Next attempt: ${nextAttemptId}.`;
+
+            } catch (error) {
+
+                console.error(
+                    "Subject update failed:",
+                    error
+                );
+
+                statusText.innerText =
+                    "Could not update Subject on server.";
+            }
+
+        }
+
+
+        /* =====================================================
+           SEQUENCE CHANGE
+        ===================================================== */
+
+        async function onSequenceChange() {
+
+            if (isTrialRunning ||
+                isCountdownRunning) {
+
+                return;
+            }
+
+            currentSequence =
+                sequenceSelect.value;
+
+            const sequence =
+                getSelectedSequence();
+
+            if (!sequence.length) {
+
+                statusText.innerText =
+                    "Invalid sequence configuration.";
+
+                return;
+            }
+
+            statusText.innerText =
+                `${currentSequence} selected — ` +
+                `36s / 13 phases / 2s gestures with 4s REST intervals.`;
+
+            /*
+                Keep Python/backend informed about the
+                currently selected sequence.
+
+                If the endpoint is unavailable, the browser
+                still retains the selected sequence locally.
+            */
+
+            try {
+
+                await fetch('/api/set_subject', {
+
+                    method: 'POST',
+
+                    headers: {
+                        'Content-Type':
+                            'application/json'
+                    },
+
+                    body: JSON.stringify({
+                        subject_id:
+                            currentSubject,
+
+                        sequence_id:
+                            currentSequence,
+
+                        duration:
+                            TRIAL_DURATION,
+
+                        phase_duration:
+                            PHASE_DURATION,
+
+                        timeline:
+                            sequence.map(
+                                (phase, index) => ({
+                                    phase_index:
+                                        index + 1,
+
+                                    start:
+                                        phase.start,
+
+                                    end:
+                                        phase.end,
+
+                                    label:
+                                        phase.label,
+
+                                    target:
+                                        phase.target
+                                })
+                            )
+                    })
+
+                });
+
+            } catch (error) {
+
+                console.warn(
+                    "Could not sync sequence with server yet:",
+                    error
+                );
+            }
+
+        }
+
+
+        /* =====================================================
+           COUNTDOWN
+        ===================================================== */
+
+        function controllerStartNotice() {
+
+            if (isTrialRunning || isCountdownRunning) {
+                return;
+            }
+
+            statusText.innerText =
+                "Run Python Cell 3 to start the synchronized 36s trial.";
+
+            console.log(
+                "HTML is controller-driven. Start the trial from Python Cell 3."
+            );
+        }
+
+
+        function startTrialCountdown() {
+
+            controllerStartNotice();
+
+        }
+
+
+        /* =====================================================
+           SYNC SELECTED CONFIGURATION
+           
+           IMPORTANT:
+           This function only sends configuration.
+           It does NOT start EOG acquisition.
+        ===================================================== */
+
+        async function syncTrialConfiguration() {
+
+            const payload = {
+                subject_id: currentSubject,
+
+                sequence_id: currentSequence,
+
+                duration: TRIAL_DURATION,
+
+                phase_duration: PHASE_DURATION,
+
+                timeline: stimulusSchedule.map(
+                    (phase, index) => ({
+                        phase_index: index + 1,
+                        start: phase.start,
+                        end: phase.end,
+                        label: phase.label,
+                        target: phase.target
+                    })
+                )
+            };
+
+            try {
+
+                const res =
+                    await fetch('/api/set_subject', {
+
+                        method: 'POST',
+
+                        headers: {
+                            'Content-Type':
+                                'application/json'
+                        },
+
+                        body: JSON.stringify({
+                            subject_id:
+                                currentSubject,
+
+                            sequence_id:
+                                currentSequence,
+
+                            duration:
+                                TRIAL_DURATION,
+
+                            phase_duration:
+                                PHASE_DURATION,
+
+                            timeline:
+                                payload.timeline
+                        })
+
+                    });
+
+                /*
+                    At this stage the existing backend may not
+                    yet accept all timeline fields.
+
+                    A non-OK response is logged, but the local
+                    HTML timeline remains authoritative for the
+                    visual stimulus.
+                */
+
+                if (!res.ok) {
+
+                    console.warn(
+                        "Backend configuration endpoint returned:",
+                        res.status
+                    );
+                }
+
+            } catch (error) {
+
+                /*
+                    Do not silently pretend synchronization
+                    succeeded.
+                */
+
+                console.warn(
+                    "Backend configuration sync unavailable:",
+                    error
+                );
+            }
+
+        }
+
+
+        /* =====================================================
+           BEGIN COUNTDOWN
+        ===================================================== */
+
+        function beginCountdown() {
+
+            isCountdownRunning = true;
+
+            setTrialUIState(true);
+
+            /*
+                UI should remain hidden during countdown.
+            */
+
+            countdownOverlay.style.display =
+                'flex';
+
+            moveBall('center');
+
+            let count = 3;
+
+            countdownText.innerText =
+                count;
+
+            statusText.innerText =
+                "Preparing synchronized trial...";
+
+            if (countdownTimer) {
+
+                clearInterval(
+                    countdownTimer
+                );
+            }
+
+            countdownTimer =
+                setInterval(() => {
+
+                    count--;
+
+                    if (count > 0) {
+
+                        countdownText.innerText =
+                            count;
+
+                    } else if (count === 0) {
+
+                        countdownText.innerText =
+                            "START!";
+
+                    } else {
+
+                        clearInterval(
+                            countdownTimer
+                        );
+
+                        countdownTimer =
+                            null;
+
+                        countdownOverlay.style.display =
+                            'none';
+
+                        isCountdownRunning =
+                            false;
+
+                        /*
+                            The actual trial starts here.
+                            
+                            No /api/start_trial call.
+                            The notebook/controller will own
+                            acquisition start.
+                        */
+
+                        startVisualTrial();
+
+                    }
+
+                }, 1000);
+
+        }
+
+
+        /* =====================================================
+           START VISUAL TRIAL
+           
+           This starts ONLY the HTML stimulus clock.
+           
+           Python Cell 3 will later use the same
+           synchronization handshake to start acquisition.
+        ===================================================== */
+
+        function startVisualTrial(scheduleOverride = null) {
+
+            if (isTrialRunning) {
+                return;
+            }
+
+            /*
+                Controller-provided timeline is authoritative when
+                this function is called by Python synchronization.
+            */
+
+            if (
+                Array.isArray(scheduleOverride) &&
+                scheduleOverride.length === TOTAL_PHASES
+            ) {
+
+                stimulusSchedule =
+                    scheduleOverride.map(
+                        phase => ({
+                            start:
+                                Number(phase.start),
+
+                            end:
+                                Number(phase.end),
+
+                            label:
+                                phase.label === "CENTER"
+                                    ? "REST"
+                                    : phase.label,
+
+                            target:
+                                phase.target ||
+                                labelToTarget(
+                                    phase.label
+                                )
+                        })
+                    );
+
+            } else {
+
+                stimulusSchedule =
+                    getSelectedSequence();
+            }
+
+            if (!stimulusSchedule.length) {
+
+                statusText.innerText =
+                    "Trial aborted: invalid sequence.";
+
+                resetUI();
+
+                return;
+            }
+
+            setTrialUIState(true);
+
+            trialHUD.style.display =
+                'flex';
+
+            hudSamples.innerText =
+                '0';
+
+            hudTime.innerText =
+                '00.0 / 36.0s';
+
+            hudStimulus.innerText =
+                'REST';
+
+            lastStimulusIndex =
+                -1;
+
+            /*
+                This function is called at the synchronized
+                controller timestamp.
+
+                performance.now() is therefore the local high-
+                resolution visual clock origin.
+            */
+
+            trialStartTime =
+                performance.now();
+
+            isTrialRunning =
+                true;
+
+            applyStimulusPhase(0);
+
+            trialTimer =
+                setInterval(
+                    updateTrialLoop,
+                    20
+                );
+
+            statusText.innerText =
+                `${currentSequence} running — 36.0s trial.`;
+
+        }
+
+        /* =====================================================
+           TRIAL LOOP
+        ===================================================== */
+
+        function updateTrialLoop() {
+
+            if (!isTrialRunning ||
+                trialStartTime === null) {
+
+                return;
+            }
+
+            const elapsedSec =
+                (
+                    performance.now() -
+                    trialStartTime
+                ) / 1000.0;
+
+            /*
+                Finish exactly at 36 seconds.
+            */
+
+            if (elapsedSec >= TRIAL_DURATION) {
+
+                hudTime.innerText =
+                    '36.0 / 36.0s';
+
+                applyStimulusPhase(
+                    TOTAL_PHASES - 1
+                );
+
+                finishVisualTrial();
+
+                return;
+            }
+
+            hudTime.innerText =
+                `${elapsedSec.toFixed(1)} / 36.0s`;
+
+            /*
+                Use the configured timeline boundaries.
+                REST phases are 4 seconds, while gesture phases
+                are 2 seconds. Never derive the phase index by
+                dividing elapsed time by PHASE_DURATION.
+            */
+
+            let phaseIndex = stimulusSchedule.findIndex(
+                phase =>
+                    elapsedSec >= Number(phase.start) &&
+                    elapsedSec < Number(phase.end)
+            );
+
+            if (phaseIndex < 0) {
+                phaseIndex = TOTAL_PHASES - 1;
+            }
+
+            if (phaseIndex !== lastStimulusIndex) {
+
+                applyStimulusPhase(
+                    phaseIndex
+                );
+            }
+
+        }
+
+
+        /* =====================================================
+           APPLY STIMULUS PHASE
+        ===================================================== */
+
+        function applyStimulusPhase(
+            phaseIndex
+        ) {
+
+            if (
+                phaseIndex < 0 ||
+                phaseIndex >= stimulusSchedule.length
+            ) {
+                return;
+            }
+
+            const phase =
+                stimulusSchedule[phaseIndex];
+
+            lastStimulusIndex =
+                phaseIndex;
+
+            hudStimulus.innerText =
+                phase.label;
+
+            moveBall(
+                phase.target
+            );
+
+        }
+
+
+        /* =====================================================
+           FINISH VISUAL TRIAL
+        ===================================================== */
+
+        async function finishVisualTrial() {
+
+            if (trialTimer) {
+                clearInterval(trialTimer);
+                trialTimer = null;
+            }
+
+            moveBall('center');
+
+            hudStimulus.innerText = 'FINISHING...';
+
+            statusText.innerText =
+                "36s stimulus sequence completed.";
+
+            try {
+
+                const payload =
+                    buildTimelinePayload();
+
+                const res =
+                    await fetch(
+                        '/api/stimulus_complete',
+                        {
+                            method: 'POST',
+
+                            headers: {
+                                'Content-Type':
+                                    'application/json'
+                            },
+
+                            body: JSON.stringify({
+                                subject_id:
+                                    currentSubject,
+
+                                attempt_id:
+                                    activeAttemptId,
+
+                                sequence_id:
+                                    currentSequence,
+
+                                duration:
+                                    TRIAL_DURATION,
+
+                                timeline:
+                                    payload.phases
+                            })
+                        }
+                    );
+
+                if (res.ok) {
+
+                    console.log(
+                        "Stimulus timeline sent to backend."
+                    );
+
+                } else {
+
+                    console.warn(
+                        "Stimulus completion returned:",
+                        res.status
+                    );
+                }
+
+            } catch (error) {
+
+                console.warn(
+                    "Stimulus completion endpoint unavailable:",
+                    error
+                );
+
+            } finally {
+
+                isTrialRunning = false;
+                isCountdownRunning = false;
+                trialStartTime = null;
+                lastStimulusIndex = -1;
+
+                trialHUD.style.display = 'none';
+
+                setTrialUIState(false);
+
+                statusText.innerText =
+                    "36s stimulus sequence completed. " +
+                    "Python controller can now finish/save the attempt.";
+
+            }
+
+        }
+
+
+        /* =====================================================
+           RECEIVE TRIAL START FROM BACKEND
+           
+           This function is intentionally available for the
+           future Python -> HTML synchronization mechanism.
+           
+           It does not call /api/start_trial.
+        ===================================================== */
+
+        function startTrialFromController(
+            attemptId,
+            sequenceId,
+            timeline,
+            startTimestamp
+        ) {
+
+            if (isTrialRunning) {
+
+                console.warn(
+                    "Trial already running."
+                );
+
+                return;
+            }
+
+            /*
+                Validate controller timestamp.
+            */
+
+            const startAt =
+                Number(startTimestamp);
+
+            if (!Number.isFinite(startAt)) {
+
+                console.error(
+                    "Invalid controller start timestamp:",
+                    startTimestamp
+                );
+
+                return;
+            }
+
+            /*
+                Use controller-provided sequence.
+            */
+
+            if (sequenceId) {
+
+                currentSequence =
+                    sequenceId;
+
+                sequenceSelect.value =
+                    sequenceId;
+            }
+
+            /*
+                Use controller-provided exact timeline.
+            */
+
+            let controllerTimeline = null;
+
+            if (
+                Array.isArray(timeline) &&
+                timeline.length === TOTAL_PHASES &&
+                validateSequence(
+                    timeline.map(
+                        phase => ({
+                            start:
+                                Number(phase.start),
+
+                            end:
+                                Number(phase.end),
+
+                            label:
+                                phase.label === "CENTER"
+                                    ? "REST"
+                                    : phase.label,
+
+                            target:
+                                phase.target ||
+                                labelToTarget(
+                                    phase.label
+                                )
+                        })
+                    )
+                )
+            ) {
+
+                controllerTimeline =
+                    timeline.map(
+                        phase => ({
+                            start:
+                                Number(phase.start),
+
+                            end:
+                                Number(phase.end),
+
+                            label:
+                                phase.label === "CENTER"
+                                    ? "REST"
+                                    : phase.label,
+
+                            target:
+                                phase.target ||
+                                labelToTarget(
+                                    phase.label
+                                )
+                        })
+                    );
+
+            } else {
+
+                controllerTimeline =
+                    getSelectedSequence();
+            }
+
+            if (
+                !controllerTimeline.length
+            ) {
+
+                console.error(
+                    "Controller supplied an invalid timeline."
+                );
+
+                return;
+            }
+
+            /*
+                Store attempt identity supplied by Python.
+            */
+
+            activeAttemptId =
+                attemptId || null;
+
+            /*
+                Prevent repeated scheduling from the 100 ms
+                status poll.
+            */
+
+            const startKey =
+                `${attemptId || ''}|` +
+                `${sequenceId || ''}|` +
+                `${startAt}`;
+
+            if (
+                controllerStartKey === startKey
+            ) {
+
+                return;
+            }
+
+            controllerStartKey =
+                startKey;
+
+            /*
+                Lock the controls while waiting for the exact
+                common start time.
+            */
+
+            setTrialUIState(true);
+
+            /*
+                setTrialUIState(true) also marks isTrialRunning=true.
+                That flag must remain false until the scheduled
+                timestamp is reached, otherwise startVisualTrial()
+                would reject the real start as a duplicate.
+            */
+            isTrialRunning =
+                false;
+
+            countdownOverlay.style.display =
+                'none';
+
+            trialHUD.style.display =
+                'flex';
+
+            hudSamples.innerText =
+                '0';
+
+            hudTime.innerText =
+                '00.0 / 36.0s';
+
+            hudStimulus.innerText =
+                'REST';
+
+            lastStimulusIndex =
+                -1;
+
+            stimulusSchedule =
+                controllerTimeline;
+
+            statusText.innerText =
+                "Synchronized start scheduled...";
+
+            /*
+                Convert shared Unix timestamp to a browser delay.
+
+                Python:
+                    time.time()
+
+                Browser:
+                    Date.now() / 1000
+
+                Both refer to Unix epoch time on this computer.
+            */
+
+            const delayMs =
+                Math.max(
+                    0,
+                    (startAt * 1000) - Date.now()
+                );
+
+            if (controllerStartTimer) {
+
+                clearTimeout(
+                    controllerStartTimer
+                );
+
+                controllerStartTimer =
+                    null;
+            }
+
+            controllerStartTimer =
+                setTimeout(
+                    () => {
+
+                        controllerStartTimer =
+                            null;
+
+                        /*
+                            A second safety check prevents an
+                            accidental duplicate start.
+                        */
+
+                        if (isTrialRunning) {
+                            return;
+                        }
+
+                        startVisualTrial(
+                            controllerTimeline
+                        );
+
+                    },
+                    delayMs
+                );
+
+        }
+
+        /* =====================================================
+           LABEL -> TARGET HELPER
+        ===================================================== */
+
+        function labelToTarget(label) {
+
+            switch (
+                String(label).toUpperCase()
+            ) {
+
+                case "RIGHT":
+                    return "right";
+
+                case "LEFT":
+                    return "left";
+
+                case "UP":
+                    return "up";
+
+                case "DOWN":
+                    return "down";
+
+                case "CENTER":
+                case "REST":
+                default:
+                    return "center";
+            }
+
+        }
+
+
+        /* =====================================================
+           GET CURRENT TIMELINE
+           
+           Python/backend can request this later.
+        ===================================================== */
+
+        function getCurrentStimulusTimeline() {
+
+            return buildTimelinePayload();
+
+        }
+
+
+        /* =====================================================
+           CONCLUDE / INSPECTION
+           
+           This function can be called by backend-driven flow
+           after Python has actually saved the recording.
+        ===================================================== */
+
+        function showInspectionResult(
+            result
+        ) {
+
+            isTrialRunning =
+                false;
+
+            if (trialTimer) {
+
+                clearInterval(
+                    trialTimer
+                );
+
+                trialTimer =
+                    null;
+            }
+
+            trialHUD.style.display =
+                'none';
+
+            setTrialUIState(false);
+
+            if (!result) {
+                return;
+            }
+
+            activeAttemptId =
+                result.attempt_id ||
+                activeAttemptId;
+
+            modalAttemptTitle.innerText =
+                `${result.attempt_id || activeAttemptId}`;
+
+            if (result.subject_id) {
+
+                modalAttemptTitle.innerText +=
+                    ` (Subject: ${result.subject_id})`;
+            }
+
+            if (result.metrics) {
+
+                metricDuration.innerText =
+                    `${result.metrics.duration ?? '--'} s`;
+
+                metricSamples.innerText =
+                    result.metrics.sample_count ??
+                    '--';
+
+                metricFs.innerText =
+                    `${result.metrics.sampling_rate ?? '--'} Hz`;
+
+                metricCheck.innerText =
+                    result.metrics.validation_msg ??
+                    '--';
+
+            } else {
+
+                metricDuration.innerText =
+                    '--';
+
+                metricSamples.innerText =
+                    '--';
+
+                metricFs.innerText =
+                    '--';
+
+                metricCheck.innerText =
+                    '--';
+            }
+
+            if (result.plot_url) {
+
+                plotImage.src =
+                    result.plot_url +
+                    (
+                        result.plot_url.includes('?')
+                            ? '&'
+                            : '?'
+                    ) +
+                    't=' +
+                    Date.now();
+
+            } else {
+
+                plotImage.removeAttribute(
+                    'src'
+                );
+            }
+
+            if (result.has_selected) {
+
+                replaceAlertBox.style.display =
+                    'block';
+
+                replaceAlertText.innerText =
+                    `Subject ${result.subject_id} ` +
+                    `already has a selected recording: ` +
+                    `${result.selected_attempt_id}.`;
+
+                btnSelectAttempt.innerText =
+                    "✔ REPLACE Existing & SELECT";
+
+            } else {
+
+                replaceAlertBox.style.display =
+                    'none';
+
+                btnSelectAttempt.innerText =
+                    "✔ SELECT For Final Dataset";
+            }
+
+            inspectionModal.style.display =
+                'flex';
+
+        }
+
+
+        /* =====================================================
+           DECISION HANDLER
+        ===================================================== */
+
+        async function handleDecision(
+            action
+        ) {
+
+            let replace = false;
+
+            if (
+                action === 'SELECT' &&
+                hasSelectedRecording
+            ) {
+
+                const confirmed =
+                    confirm(
+                        `Subject ${currentSubject} already ` +
+                        `has a selected recording ` +
+                        `(${selectedAttemptId}).\n\n` +
+
+                        `Do you want to REPLACE it with ` +
+                        `${activeAttemptId}?`
+                    );
+
+                if (!confirmed) {
+                    return;
+                }
+
+                replace = true;
+            }
+
+            try {
+
+                const res =
+                    await fetch(
+                        '/api/decision',
+                        {
+                            method: 'POST',
+
+                            headers: {
+                                'Content-Type':
+                                    'application/json'
+                            },
+
+                            body: JSON.stringify({
+
+                                action:
+                                    action,
+
+                                attempt_id:
+                                    activeAttemptId,
+
+                                replace:
+                                    replace
+
+                            })
+                        }
+                    );
+
+                if (!res.ok) {
+
+                    throw new Error(
+                        `HTTP ${res.status}`
+                    );
+                }
+
+                const data =
+                    await res.json();
+
+                statusText.innerText =
+                    data.message ||
+                    `${action} completed.`;
+
+            } catch (error) {
+
+                console.error(
+                    "Decision failed:",
+                    error
+                );
+
+                statusText.innerText =
+                    `Could not submit ${action}.`;
+
+                return;
+            }
+
+            inspectionModal.style.display =
+                'none';
+
+            activeAttemptId =
+                null;
+
+            resetUI();
+
+            await refreshStatus();
+
+        }
+
+
+        /* =====================================================
+           RESET UI
+        ===================================================== */
+
+        function resetUI() {
+
+            if (trialTimer) {
+
+                clearInterval(
+                    trialTimer
+                );
+
+                trialTimer =
+                    null;
+            }
+
+            if (countdownTimer) {
+
+                clearInterval(
+                    countdownTimer
+                );
+
+                countdownTimer =
+                    null;
+            }
+
+            if (controllerStartTimer) {
+
+                clearTimeout(
+                    controllerStartTimer
+                );
+
+                controllerStartTimer =
+                    null;
+            }
+
+            controllerStartKey =
+                null;
+
+            isTrialRunning =
+                false;
+
+            isCountdownRunning =
+                false;
+
+            trialStartTime =
+                null;
+
+            lastStimulusIndex =
+                -1;
+
+            trialHUD.style.display =
+                'none';
+
+            countdownOverlay.style.display =
+                'none';
+
+            setTrialUIState(false);
+
+            moveBall('center');
+
+            hudTime.innerText =
+                '00.0 / 36.0s';
+
+            hudStimulus.innerText =
+                'REST';
+
+        }
+
+
+        /* =====================================================
+           DEBUG / TEST HELPERS
+           
+           These do not start acquisition.
+           
+           Useful from browser console:
+           
+           getCurrentStimulusTimeline()
+           
+           startTrialFromController(
+               "S01_A01",
+               "Sequence_A",
+               null,
+               null
+           )
+        ===================================================== */
+
+        window.getCurrentStimulusTimeline =
+            getCurrentStimulusTimeline;
+
+        window.startTrialFromController =
+            startTrialFromController;
+
+        window.validateSequence =
+            validateSequence;
+
+
+        /* =====================================================
+           INITIALIZATION
+        ===================================================== */
+
+        window.addEventListener(
+            'DOMContentLoaded',
+            async () => {
+
+                currentSubject =
+                    subjectInput.value.trim()
+                        .toUpperCase();
+
+                currentSequence =
+                    sequenceSelect.value;
+
+                stimulusSchedule =
+                    getSelectedSequence();
+
+                moveBall('center');
+
+                refreshStatus();
+
+                /*
+                    Poll server status only for:
+                    - subject
+                    - attempt ID
+                    - selected status
+                    - hardware status
+                    - sample count
+
+                    IMPORTANT:
+                    We do NOT use server recording=true
+                    to start the browser trial.
+                */
+
+                statusPollTimer =
+                    setInterval(
+                        refreshStatus,
+                        100
+                    );
+
+            }
+        );
+
+    </script>
+
+</body>
+</html>
