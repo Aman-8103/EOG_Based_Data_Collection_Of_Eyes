@@ -1,0 +1,2 @@
+Subject_ID,Attempt_ID,Sequence_ID,Status,Sample_Count,Duration,Sampling_Rate,Selected,Recording_DateTime
+S01,S01_A01,Sequence_A,SELECTED,9001,36.002,250.0,True,2026-11-17 00:31:47
