@@ -11,6 +11,7 @@ index.html.bak
 # Large / Temporary Plots & Data
 # ==========================================
 New Data/
+LabelData/*.csv
 New Data Plots/*
 !New Data Plots/.gitkeep
 *.bak
